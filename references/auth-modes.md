@@ -12,6 +12,8 @@ Both SDKs accept the same `config` auth blocks. Pick **one**.
 
 ## Client JWT — the "user without login" flow
 
+**It always needs a server.** The JWT is signed with the app secret, and the secret must never reach a browser or mobile bundle. So this mode means a backend change: one route plus one helper file. Agree on it with the user before writing it (SKILL.md §7). Frontend-only alternatives are in web-integration.md §7 and rn-integration.md §5.
+
 ```
 your frontend ──GET /api/ethora/token──▶ your backend ──sign HS256 with APP_SECRET──▶ { token }
       │                                                                                    │
@@ -33,7 +35,8 @@ Token payload (HS256, secret = **app secret** from admin panel → app → Setti
 ```json
 { "bypassEmailConfirmation": true, "usersList": [{ "uuid": "<userId>", "email": "...", "firstName": "...", "lastName": "..." }] }
 ```
-Do this when the user is created in your system or lazily before minting their first token (templates do the lazy version). `uuid` must equal the `userId` you sign. `scripts/ensure-user.mjs` does it from the terminal; `scripts/verify-setup.mjs --user-id X --email Y` proves the whole chain.
+Do this when the user is created in your system or lazily before minting their first token (templates do the lazy version). `uuid` must equal the `userId` you sign.
+`firstName` and `lastName` are required and must be **≥ 2 characters** (`422 VALIDATION_ERROR` otherwise; verified on Ethora Cloud, Oct 2026). Many apps have one `name` field: split it and fall back to `User` (template helper `ensureEthoraUser({ userId, email, name })`). `scripts/ensure-user.mjs` does it from the terminal; `scripts/verify-setup.mjs --user-id X --email Y` proves the whole chain.
 
 ### Backend templates
 

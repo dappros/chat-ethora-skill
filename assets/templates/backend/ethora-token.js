@@ -4,6 +4,7 @@
 //   const { clientToken, ensureEthoraUser } = require('./ethora-token');
 //   app.get('/api/ethora/token', requireAuth, async (req, res) => {
 //     await ensureEthoraUser({ userId: req.user.id, email: req.user.email, firstName: req.user.firstName, lastName: req.user.lastName });
+//     // only one name field? ensureEthoraUser({ userId, email, name: req.user.name }) — it is split and padded
 //     res.json({ token: clientToken(req.user.id) });
 //   });
 const { createHmac } = require('node:crypto');
@@ -31,15 +32,24 @@ function serverToken({ ttlSeconds = 3600 } = {}) {
   return sign({ data: { type: 'server', appId: APP_ID }, iat: now(), exp: now() + ttlSeconds });
 }
 
+// /v1/users/batch rejects firstName/lastName that are empty or shorter than 2 characters (422 VALIDATION_ERROR).
+// Apps often have one "name" field or none: split it, and fall back to a neutral placeholder.
+function ethoraNames({ firstName, lastName, name }) {
+  const ok = (s) => (typeof s === 'string' && s.trim().length >= 2 ? s.trim() : null);
+  const [first, ...rest] = String(name || '').trim().split(/\s+/);
+  return { firstName: ok(firstName) || ok(first) || 'User', lastName: ok(lastName) || ok(rest.join(' ')) || 'User' };
+}
+
 const ensured = new Set(); // per-process memo; persist a flag in your DB for real deployments
-/** Create the user in the Ethora app once (POST /v1/users/batch). Idempotent; errors for "already exists" are ignored. */
-async function ensureEthoraUser({ userId, email, firstName, lastName }) {
+/** Create the user in the Ethora app once (POST /v1/users/batch). Idempotent; errors for "already exists" are ignored.
+ *  Pass firstName/lastName, or a single `name` (it is split). */
+async function ensureEthoraUser({ userId, email, firstName, lastName, name }) {
   const key = String(userId);
   if (ensured.has(key)) return;
   const res = await fetch(`${API_URL}/v1/users/batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-custom-token': serverToken() },
-    body: JSON.stringify({ bypassEmailConfirmation: true, usersList: [{ uuid: key, email, firstName: firstName || 'User', lastName: lastName || '' }] }),
+    body: JSON.stringify({ bypassEmailConfirmation: true, usersList: [{ uuid: key, email, ...ethoraNames({ firstName, lastName, name }) }] }),
   });
   if (!res.ok) {
     const text = await res.text();

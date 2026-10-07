@@ -9,7 +9,7 @@ router.get('/api/ethora/token', async (req, res) => {
   try {
     // TODO: replace with your real session user
     const user = req.user || { id: 'demo-user-1', email: 'demo-user-1@example.com', firstName: 'Demo', lastName: 'User' };
-    await ensureEthoraUser({ userId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName });
+    await ensureEthoraUser({ userId: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, name: user.name });
     res.json({ token: clientToken(user.id) });
   } catch (e) {
     res.status(500).json({ error: e.message });

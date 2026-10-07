@@ -1,6 +1,6 @@
 ---
 name: ethora-skill
-description: Integrate Ethora chat into a React (web) or React Native (Expo / bare) app, or scaffold a new app with chat built in. Installs @ethora/chat-component or @ethora/chat-component-rn, wraps the app in XmppProvider, creates the chat page/screen, signs into the Ethora admin (app.chat.ethora.com) from the terminal to create/select an app and fetch its credentials, wires the "user without login" client-JWT flow with a backend token route, supports self-hosted Ethora servers, and verifies the setup. Use this whenever someone mentions Ethora, @ethora/chat-component(-rn), api.chat.ethora.com, app.chat.ethora.com, "add chat to my app", in-app messaging/chat rooms for a React or RN app, XmppProvider, or wants chat with their own users logged in automatically — even if they don't say "Ethora".
+description: Integrate Ethora chat into a React (web) or React Native (Expo / bare) app, or scaffold a new app with chat built in. Installs @ethora/chat-component or @ethora/chat-component-rn, wraps the web app in XmppProvider, creates the chat page/screen, signs into the Ethora admin (app.chat.ethora.com) from the terminal to create/select an app and fetch its credentials, wires the "user without login" client-JWT flow with a backend token route (or, for frontend-only devs, a backend handoff doc + dev token / zero-backend login), supports self-hosted Ethora servers, and verifies the setup. Use this whenever someone mentions Ethora, @ethora/chat-component(-rn), api.chat.ethora.com, app.chat.ethora.com, "add chat to my app", in-app messaging/chat rooms for a React or RN app, XmppProvider, or wants chat with their own users logged in automatically — even if they don't say "Ethora".
 ---
 
 # Ethora chat integration
@@ -11,7 +11,7 @@ Paths in this file are relative to the skill directory. Scripts are plain Node (
 
 ## 0. Orient
 
-1. Run `node scripts/detect-project.mjs <projectDir> --json`. It tells you platform (web / react-native / none), framework (vite, next, cra, expo, bare-rn), router, package manager, env convention, entry files and existing pages/screens.
+1. Run `node scripts/detect-project.mjs <projectDir> --json`. It tells you platform (web / react-native / none), framework (vite, next, cra, expo, bare-rn), router, package manager, env convention, entry files, existing pages/screens, and `backend`: Node servers found in the project, its subfolders or sibling folders. The backend result feeds §7.
 2. Decide the track:
    - **Existing app** → continue below.
    - **No project** (`platform: none`) or the user wants a new app → scaffold first, then continue as "existing":
@@ -22,12 +22,12 @@ Paths in this file are relative to the skill directory. Scripts are plain Node (
    - web → `references/web-integration.md`
    - React Native → `references/rn-integration.md`
 
-Keep the user in the loop with short confirmations, but do not stop for things you can decide (package manager, file names, where templates go). Stop and ask (AskUserQuestion when available) only for the four real decisions: which page/screen, Cloud vs self-hosted, account (login/register), which app.
+Keep the user in the loop with short confirmations, but do not stop for things you can decide (package manager, file names, where templates go). Stop and ask (AskUserQuestion when available) only for the five real decisions: which page/screen, **how users sign in to the chat (which decides whether the backend changes, §7)**, Cloud vs self-hosted, account (login/register), which app. Ask the sign-in question early, together with the page question. Never change a backend the user did not agree to change.
 
 ## 1. Install the SDK
 
 - web: `@ethora/chat-component` (+ import `@ethora/chat-component/dist/main.css` once)
-- RN: `@ethora/chat-component-rn` + required native peers via `npx expo install …` (list in the RN reference), then `pod install` / rebuild. Expo Go cannot run it.
+- RN: follow `references/rn-integration.md` §1 exactly. The order matters: native peers first via `npx expo install …` (including `react-native-worklets` for Reanimated 4 and `expo-asset`), then `npm install @ethora/chat-component-rn --legacy-peer-deps`. A plain `npm install` of the SDK fails with ERESOLVE on fresh Expo apps, or pulls native versions the Expo SDK doesn't support. Finish with `npx expo-doctor`. **Tell the user right away that Expo Go cannot run the chat**: they need a development build (`npx expo run:ios|android`).
 
 Use the detected package manager. If the package is already installed, just note the version.
 
@@ -41,13 +41,15 @@ Ask: *existing page/screen or a new one?* Offer the list from `detect-project` (
 - Register the route/screen in their router (react-router `<Route>`, Next `app/chat/page.tsx`, Expo Router `app/chat.tsx`, React Navigation `Stack.Screen`). Add a link/tab so it is reachable.
 - Give the container a real height (web: `100vh`/flex; RN: `flex: 1`).
 
-## 3. Wrap with `XmppProvider`
+## 3. Wrap with `XmppProvider` (web; RN: see the end of this section)
 
 `Chat` must live inside `XmppProvider`. Two valid placements — pick with the user's usage in mind, don't ask unless it matters:
 - **page-level** (template default): simplest, chat only on that page.
 - **app root**: when they want unread badges elsewhere, chat on several pages, or push. Move `XmppProvider config={config}` to `main.tsx`/`App.tsx`/root layout (client component in Next) and keep `<Chat config={config} />` in the page.
 
 Rules that prevent the classic bugs: one memoized `config` object passed to **both** provider and chat; `initBeforeLoad: true`; never call the XMPP client login yourself. (Templates already comply.)
+
+**React Native is different: no outer `XmppProvider`.** RN `<Chat>` mounts its own redux store and `XmppProvider` (26.4.x and 26.9.x). In 26.9.x an outer `XmppProvider` crashes the screen with `could not find react-redux context value` (its video-call overlay sits outside the store). Render only `<Chat config={config} />`, as the RN template does. Everything above about the provider is for the web SDK.
 
 **React StrictMode must not wrap the chat (web SDK 26.9.x).** StrictMode's double-invoked effects start the XMPP bootstrap twice: the first connect takes ~30 s instead of ~2 s and sent messages stay at "sending…" then show "Not delivered" although the server stored them (verified live). Vite/CRA templates wrap the app in `<StrictMode>` in `main.tsx` — remove it (or move it so it does not enclose the chat page); Next.js: `reactStrictMode: false` in `next.config`. Tell the user why.
 
@@ -67,6 +69,8 @@ It needs a real TTY, so the `!` prefix in Claude Code does not work for it: ask 
 
 Non-interactive alternative, if the user prefers to hand you the values: `ETHORA_PASSWORD=… node scripts/ethora-admin.mjs setup --email <email> --app <appId>` (or `--create-app "<name>"`, `--register --first-name … --last-name …`, `ETHORA_MFA_CODE=…`). Never echo the password back and never write it anywhere.
 
+**An existing profile is not proof the app still exists.** If `~/.ethora/profiles.json` already has an active profile, run `node scripts/verify-setup.mjs --user-id skill-check-1 --email skill-check-1@example.com` before reusing it. `APP_NOT_FOUND` means the app was deleted: `ethora-admin.mjs apps` shows what is left, then `use <appId>` or `create-app --name "<name>"` (ask the user which). The admin session in `~/.ethora/session.json` often still works, so these commands run without the interactive login.
+
 Afterwards run (non-interactive, you can do it): `node scripts/ethora-admin.mjs profile --json` to read appId / endpoints, and check `appSecret` is present. If the API did not return the secret, the user copies it from admin → app → Settings → API → Secret and runs `node scripts/ethora-admin.mjs set-secret <secret>`.
 
 Individual commands exist too (`login`, `register`, `apps`, `create-app --name`, `use <appId>`, `logout`) — see `references/admin-api.md` for what each endpoint does.
@@ -79,15 +83,23 @@ node scripts/write-env.mjs --target backend --dir <backendDir>     # ETHORA_APP_
 ```
 It merges keys into `.env.local` / `.env` / `src/ethora.config.ts`, adds them to `.gitignore`, and never writes the secret with a public prefix. The templates read exactly these keys.
 
-## 7. Auth — "my users should be logged in automatically"
+## 7. Auth — decide WITH the user whether the backend changes
 
-Read `references/auth-modes.md` (short) and implement the **client JWT** flow unless the user asks otherwise:
+"My users should land in the chat already logged in" means the **client JWT** flow, and **that always needs a server**: the JWT is signed with the app secret, and the secret must never be in a browser or mobile bundle. So tell the user plainly, before writing any code, that this mode adds one route to their backend (`GET /api/ethora/token`) plus one helper file. Then pick the path using the `backend` result from `detect-project` and the user's answer:
 
-1. Backend route `GET /api/ethora/token` → signs `{ data: { type: 'client', appId, userId } }` HS256 with the app secret and ensures the user exists in the app (`/v1/users/batch`). Templates: `assets/templates/backend/ethora-token.js` + `express-route.js`, or `next-route.ts` for Next. Hook `getCurrentUser`/`req.user` to their real session.
-2. Frontend (already in the templates) fetches the token and renders `Chat` with `jwtLogin: { enabled: true, token }`.
-3. `userId` must be the app's own stable id for the user — same on web and mobile.
+| Situation | What to do |
+| --- | --- |
+| **A. User owns a backend in this workspace** (detected, and they confirm) | Add the token route: `assets/templates/backend/ethora-token.js` + `express-route.js`, or `next-route.ts` for Next. Put it **behind the app's existing auth middleware** so the token is minted for `req.user`, not a demo user. `write-env.mjs --target backend --dir <backendDir>`; with Docker, pass `backend/.env` via `env_file` and keep it out of the image (`.dockerignore`). Frontend sends the app's session (Bearer/cookie) to the route. |
+| **B. Backend exists but isn't here, is in another language, or belongs to another team** (typical for a frontend dev) | Don't touch it. Write `ETHORA_BACKEND.md` into the frontend repo from `assets/templates/backend/BACKEND_HANDOFF.md`: fill `__APP_ID__`, `__API_URL__`, `__DEV_MODE__`, **never the secret**, and say who to ask for it. Copy `ethora-token.js` next to it as reference code. Meanwhile wire the frontend to the final contract (`GET <api>/api/ethora/token` with the session header) and unblock local work with a **dev token** (`client-jwt.mjs` → `write-env.mjs --dev-jwt`). Make clear that every user is the same chat user and the token expires. |
+| **C. No backend at all, and the user is fine with a separate chat login** | Zero-backend modes: the chat's built-in Ethora login/registration (no `jwtLogin`; `appId` + `customAppToken`), or `customLogin` with a test account (dev only). Chat accounts are separate from the app's accounts. Web caveat: web-integration.md §7. |
+| **D. No backend, but they want auto sign-in anyway** | Explain it isn't possible safely without a server. Offer: the Vite dev plugin (web, dev only), a dev token (dev only), or a minimal token service (the Express template is self-contained: one file plus a route, deployable as a serverless function). Do **not** sign tokens in the client with the secret. |
 
-No backend in this project? Offer, in this order: the Vite dev plugin (`assets/templates/web/vite-dev-token-plugin.ts`), a pre-signed dev token (`scripts/client-jwt.mjs --user-id dev-user-1 --expires 7d` → `write-env.mjs --dev-jwt`), or the built-in login/registration form (`customAppToken` only, no `jwtLogin`). Always say which one is dev-only.
+Rules for every path:
+- `userId` in the token = the app's own stable user id (same on web and mobile). `ensureEthoraUser` must run before the first token: `/v1/users/client` never creates users. Names must be ≥ 2 characters (the helper handles it).
+- Dev-only pieces (dev token, Vite plugin, customLogin test password) are labelled as such in code comments and in the final summary.
+- If the app has its own logout, call the SDK's `logoutService.performLogout()` (web and RN) before clearing the app session.
+
+Details and payloads: `references/auth-modes.md`. Frontend-only specifics: `references/web-integration.md` §7, `references/rn-integration.md` §5.
 
 ## 8. Verify, then run
 
@@ -96,11 +108,11 @@ node scripts/verify-setup.mjs --user-id <someUserId> --email <email>
 ```
 Checks API reachability, that the app token matches the app, that a client JWT signed with the stored secret is accepted by `/v1/users/client` (creating the user if needed), and that the XMPP host answers. Fix what it reports before starting the app.
 
-Then start the dev server / native build and ask the user to open the chat page. Expect a "Connecting…" spinner for a couple of seconds on the first load (JWT exchange, rooms, XMPP auth); 30 s means StrictMode is still on. A freshly created app has a "Main chat" room; sending a message there is the success criterion. Common failures and fixes: `references/troubleshooting.md`.
+Then start the dev server / native build and ask the user to open the chat page. RN: development build (`npx expo run:ios|android`), never Expo Go. If a Metro server was running during the install, stop it and start `npx expo start --dev-client -c`: a stale transform cache shows up as the Worklets version-mismatch error. Expect a "Connecting…" spinner for a couple of seconds on the first load (JWT exchange, rooms, XMPP auth); 30 s means StrictMode is still on. A freshly created app has a "Main chat" room; sending a message there is the success criterion. Common failures and fixes: `references/troubleshooting.md`.
 
 ## 9. Finish
 
-Tell the user, briefly: what was installed, which files were created/changed, where the credentials live (`~/.ethora/profiles.json`, env files — gitignored), how auth works and what is dev-only, and the next optional steps (room provisioning from their backend, push notifications, theming via `colors`/`colorScheme`/`dark`, single-room mode with `roomJID` + `disableRooms`). Admin panel for the app: `https://app.chat.ethora.com/app/admin/apps/<appId>` (Cloud).
+Tell the user, briefly: what was installed, which files were created/changed **(list frontend and backend changes separately, so a frontend dev sees at a glance whether the backend was touched)**, where the credentials live (`~/.ethora/profiles.json`, env files — gitignored), how auth works and what is dev-only (and, for path B, that `ETHORA_BACKEND.md` must go to the backend team), and the next optional steps (room provisioning from their backend, push notifications, theming via `colors`/`colorScheme`/`dark`, single-room mode with `roomJID` + `disableRooms`). Admin panel for the app: `https://app.chat.ethora.com/app/admin/apps/<appId>` (Cloud).
 
 ## Reference map
 
@@ -109,6 +121,7 @@ Tell the user, briefly: what was installed, which files were created/changed, wh
 | Web install, provider placement, routers, env, frontend-only options | `references/web-integration.md` |
 | RN peers, native rebuild, screens, env, push | `references/rn-integration.md` |
 | Auth modes, client JWT payload, user sync, rooms, token glossary | `references/auth-modes.md` |
+| Handoff doc for a backend you don't own | `assets/templates/backend/BACKEND_HANDOFF.md` |
 | Endpoints behind the admin panel, profile file format | `references/admin-api.md` |
 | Self-hosted servers | `references/self-hosted.md` |
 | Errors → fixes | `references/troubleshooting.md` |

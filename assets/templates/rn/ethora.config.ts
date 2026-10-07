@@ -18,7 +18,7 @@ export const ETHORA = {
   devClientJwt: process.env.EXPO_PUBLIC_ETHORA_DEV_CLIENT_JWT,
 };
 
-/** Same object for <XmppProvider> and <Chat> (single XMPP init contract). */
+/** Memoize the result and pass it to <Chat> only — <Chat> mounts its own XmppProvider (see EthoraChatScreen). */
 export function buildEthoraConfig(clientJwt: string | null): IConfig {
   return {
     appId: ETHORA.appId,

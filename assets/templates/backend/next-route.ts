@@ -19,6 +19,9 @@ async function getCurrentUser(_req: Request): Promise<{ id: string; email: strin
   return { id: 'demo-user-1', email: 'demo-user-1@example.com', firstName: 'Demo', lastName: 'User' };
 }
 
+// /v1/users/batch rejects names that are empty or shorter than 2 characters (422 VALIDATION_ERROR).
+const ok = (s?: string) => (s && s.trim().length >= 2 ? s.trim() : null);
+
 const ensured = new Set<string>();
 async function ensureEthoraUser(u: { id: string; email: string; firstName?: string; lastName?: string }) {
   if (ensured.has(u.id)) return;
@@ -26,7 +29,7 @@ async function ensureEthoraUser(u: { id: string; email: string; firstName?: stri
   const res = await fetch(`${API_URL}/v1/users/batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-custom-token': sign({ data: { type: 'server', appId: APP_ID }, iat: now, exp: now + 600 }) },
-    body: JSON.stringify({ bypassEmailConfirmation: true, usersList: [{ uuid: u.id, email: u.email, firstName: u.firstName || 'User', lastName: u.lastName || '' }] }),
+    body: JSON.stringify({ bypassEmailConfirmation: true, usersList: [{ uuid: u.id, email: u.email, firstName: ok(u.firstName) || 'User', lastName: ok(u.lastName) || 'User' }] }),
   });
   if (!res.ok && !/exist|already|duplicate/i.test(await res.text())) throw new Error('Ethora user sync failed');
   ensured.add(u.id);
