@@ -2,17 +2,25 @@
 
 A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that integrates Ethora chat (`@ethora/chat-component` for React, `@ethora/chat-component-rn` for React Native) into an existing app or a brand-new one: dependency install, `XmppProvider` wrapping, page/screen creation, terminal sign-in to the Ethora admin to create/select an app and pull credentials, the client-JWT "users logged in automatically" flow, self-hosted servers, and a verification script.
 
-## Install the skill
+## Install
 
-Project-local (recommended for a team repo):
-```bash
-mkdir -p .claude/skills && cp -r /path/to/ethora-skill .claude/skills/ethora-skill
+**Option A — plugin marketplace (recommended, one command, easy updates).** In Claude Code:
 ```
-Personal (all projects):
-```bash
-cp -r /path/to/ethora-skill ~/.claude/skills/ethora-skill
+/plugin marketplace add dappros/ethora-skill
+/plugin install ethora-skill@ethora
 ```
-Then in Claude Code just ask: *"add Ethora chat to this app"* — or invoke `/ethora-skill`.
+Shell equivalent: `claude plugin marketplace add dappros/ethora-skill && claude plugin install ethora-skill@ethora`.
+Update later with `/plugin marketplace update ethora`.
+
+**Option B — clone into a project (team repo, pinned version):**
+```bash
+git clone https://github.com/dappros/ethora-skill .claude/skills/ethora-skill
+```
+or personal, for all projects: `git clone https://github.com/dappros/ethora-skill ~/.claude/skills/ethora-skill`.
+
+**Option C — `.skill` archive** from the GitHub Releases page: unzip into `.claude/skills/`.
+
+Then just ask Claude Code: *"add Ethora chat to this app"* — or invoke `/ethora-skill`.
 
 ## What's inside
 
