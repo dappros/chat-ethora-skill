@@ -6,17 +6,17 @@ A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that i
 
 **Option A — plugin marketplace (recommended, one command, easy updates).** In Claude Code:
 ```
-/plugin marketplace add dappros/ethora-skill
+/plugin marketplace add dappros/chat-ethora-skill
 /plugin install ethora-skill@ethora
 ```
-Shell equivalent: `claude plugin marketplace add dappros/ethora-skill && claude plugin install ethora-skill@ethora`.
+Shell equivalent: `claude plugin marketplace add dappros/chat-ethora-skill && claude plugin install ethora-skill@ethora`.
 Update later with `/plugin marketplace update ethora`.
 
 **Option B — clone into a project (team repo, pinned version):**
 ```bash
-git clone https://github.com/dappros/ethora-skill .claude/skills/ethora-skill
+git clone https://github.com/dappros/chat-ethora-skill .claude/skills/ethora-skill
 ```
-or personal, for all projects: `git clone https://github.com/dappros/ethora-skill ~/.claude/skills/ethora-skill`.
+or personal, for all projects: `git clone https://github.com/dappros/chat-ethora-skill ~/.claude/skills/ethora-skill`.
 
 **Option C — `.skill` archive** from the GitHub Releases page: unzip into `.claude/skills/`.
 
