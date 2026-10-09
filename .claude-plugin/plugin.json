@@ -22,5 +22,9 @@
   "skills": [
     "."
   ],
-  "icon": "./.claude-plugin/icon.png"
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://github.com/dappros/chat-ethora-skill#readme",
+  "supportUrl": "https://github.com/dappros/chat-ethora-skill/issues",
+  "privacyPolicyUrl": "https://ethora.com/privacy-policy",
+  "termsOfServiceUrl": "https://ethora.com/terms"
 }
