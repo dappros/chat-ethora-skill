@@ -1,5 +1,6 @@
 {
   "name": "ethora-skill",
+  "displayName": "Ethora chat skill",
   "version": "1.0.0",
   "description": "Integrate Ethora chat (@ethora/chat-component for React, @ethora/chat-component-rn for React Native) into an existing or new app: install, XmppProvider wiring, chat page/screen, terminal sign-in to the Ethora admin to create/select an app and fetch credentials, client-JWT auto-login, self-hosted servers, verification.",
   "author": {
