@@ -2,6 +2,12 @@
 
 A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that integrates Ethora chat (`@ethora/chat-component` for React, `@ethora/chat-component-rn` for React Native) into an existing app or a brand-new one: dependency install, `XmppProvider` wrapping, page/screen creation, terminal sign-in to the Ethora admin to create/select an app and pull credentials, the client-JWT "users logged in automatically" flow, self-hosted servers, and a verification script.
 
+## Watch the demo
+
+[![Claude Code: Chat in Your React App from 1 Prompt](https://img.youtube.com/vi/1AVk0IdfOy0/maxresdefault.jpg)](https://www.youtube.com/watch?v=1AVk0IdfOy0)
+
+3-minute walkthrough: installing the skill, web vs React Native detection, Ethora account setup, auto sign-in through your backend, and the first message.
+
 ## Install
 
 **Option A — plugin marketplace (recommended, one command, easy updates).** In Claude Code:
