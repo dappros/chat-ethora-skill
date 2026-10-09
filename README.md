@@ -24,7 +24,6 @@ npx skills add dappros/chat-ethora-skill
 ```
 Works best in Claude Code: elsewhere the scripts run the same, but the step-by-step questions and the "run the Ethora login in a separate terminal" step may look different.
 
-**Option D — `.skill` archive** from the GitHub Releases page: unzip into `.claude/skills/`.
 
 Then just ask Claude Code: *"add Ethora chat to this app"* — or invoke `/ethora-skill`.
 
