@@ -18,7 +18,13 @@ git clone https://github.com/dappros/chat-ethora-skill .claude/skills/ethora-ski
 ```
 or personal, for all projects: `git clone https://github.com/dappros/chat-ethora-skill ~/.claude/skills/ethora-skill`.
 
-**Option C — `.skill` archive** from the GitHub Releases page: unzip into `.claude/skills/`.
+**Option C — `npx skills` (Claude Code, Cursor, Codex and other agents, listed on [skills.sh](https://skills.sh)):**
+```bash
+npx skills add dappros/chat-ethora-skill
+```
+Works best in Claude Code: elsewhere the scripts run the same, but the step-by-step questions and the "run the Ethora login in a separate terminal" step may look different.
+
+**Option D — `.skill` archive** from the GitHub Releases page: unzip into `.claude/skills/`.
 
 Then just ask Claude Code: *"add Ethora chat to this app"* — or invoke `/ethora-skill`.
 
