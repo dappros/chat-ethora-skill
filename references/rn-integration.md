@@ -18,7 +18,8 @@ npx expo install react-native-reanimated react-native-worklets react-native-gest
 npx expo install expo-audio expo-asset expo-video expo-clipboard expo-document-picker expo-image-manipulator \
   expo-image-picker expo-media-library expo-file-system expo-font expo-secure-store expo-blur expo-haptics
 # 3) the SDK itself, without npm's peer auto-install
-npm install @ethora/chat-component-rn --legacy-peer-deps
+npm view @ethora/chat-component-rn dist-tags --json   # current stable = `latest`
+npm install @ethora/chat-component-rn@latest --legacy-peer-deps
 # optional: faster encrypted cache
 npx expo install react-native-mmkv
 ```

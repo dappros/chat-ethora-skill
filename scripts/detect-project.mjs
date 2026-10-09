@@ -10,8 +10,9 @@
  *   router     react-router | next-app | next-pages | expo-router | react-navigation | none
  *   pm         npm | yarn | pnpm | bun
  *   typescript true/false, srcDir, entry candidates, env file convention, ethora package already installed
- *   backend    Node servers found in this project, its subfolders (server/, backend/, api/, apps/*, packages/*)
- *              and sibling folders — decides whether the client-JWT token route can be added here
+ *   backend    servers in any language (Node, Python, PHP, Ruby, Go, Java/Kotlin, .NET) found in this project,
+ *              its subfolders (server/, backend/, api/, apps/*, packages/*) and sibling folders —
+ *              decides whether the client-JWT token route can be added here
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -121,12 +122,32 @@ if (!pkg) {
   if (result.platform === 'react-native' && result.reactNative && major(result.reactNative.replace(/^0\./, '')) < 73 && /^[~^]?0\./.test(result.reactNative)) result.notes.push(`react-native ${result.reactNative} is below the >=0.73 peer requirement.`);
 }
 
-// Backend detection: the "auto sign-in" flow needs a server route. Look for Node servers here,
-// in typical subfolders and in sibling folders (monorepo / frontend+backend side by side).
+// Backend detection: the "auto sign-in" flow needs a server route, in whatever language the backend uses.
+// Look here, in typical subfolders and in sibling folders (monorepo / frontend+backend side by side).
 const SERVER_DEPS = { express: 'express', fastify: 'fastify', koa: 'koa', '@nestjs/core': 'nest', hono: 'hono', '@hapi/hapi': 'hapi', 'next': 'next (route handlers)' };
+const readText = (p) => { try { return readFileSync(p, 'utf8'); } catch { return ''; } };
+// [language, manifest files, [regex on manifest text, framework name]...]
+const OTHER_BACKENDS = [
+  ['python', ['requirements.txt', 'pyproject.toml', 'Pipfile', 'setup.py'], [[/\bdjango\b/i, 'django'], [/\bfastapi\b/i, 'fastapi'], [/\bflask\b/i, 'flask'], [/\b(starlette|aiohttp|sanic|litestar)\b/i, 'python web']]],
+  ['php', ['composer.json'], [[/laravel\/framework/i, 'laravel'], [/symfony\/framework-bundle/i, 'symfony'], [/slim\/slim/i, 'slim']]],
+  ['ruby', ['Gemfile'], [[/['"]rails['"]/, 'rails'], [/['"]sinatra['"]/, 'sinatra']]],
+  ['go', ['go.mod'], [[/gin-gonic\/gin/, 'gin'], [/labstack\/echo/, 'echo'], [/gofiber\/fiber/, 'fiber'], [/go-chi\/chi/, 'chi'], [/^module /m, 'go net/http']]],
+  ['java/kotlin', ['pom.xml', 'build.gradle', 'build.gradle.kts'], [[/spring-boot/i, 'spring boot'], [/io\.ktor/i, 'ktor'], [/quarkus/i, 'quarkus'], [/micronaut/i, 'micronaut']]],
+];
 function serverFramework(p) {
   const d = { ...(p?.dependencies || {}), ...(p?.devDependencies || {}) };
   for (const [k, v] of Object.entries(SERVER_DEPS)) if (d[k]) return v;
+  return null;
+}
+function otherBackend(abs) {
+  for (const [language, files, fws] of OTHER_BACKENDS) {
+    for (const file of files) {
+      const text = readText(join(abs, file));
+      if (!text) continue;
+      for (const [re, fw] of fws) if (re.test(text)) return { language, framework: fw };
+    }
+  }
+  try { if (readdirSync(abs).some((f) => f.endsWith('.csproj')) && readdirSync(abs).some((f) => /^(Program|Startup)\.cs$/.test(f))) return { language: 'c#', framework: 'asp.net core' }; } catch { /* ignore */ }
   return null;
 }
 const backendCandidates = [];
@@ -134,16 +155,19 @@ const seen = new Set();
 const consider = (d) => {
   const abs = resolve(d);
   if (seen.has(abs)) return; seen.add(abs);
+  const relation = abs === dir ? 'this project' : (abs.startsWith(dir) ? 'subfolder' : 'sibling');
   const fw = serverFramework(readJson(join(abs, 'package.json')));
-  if (fw) backendCandidates.push({ dir: abs, framework: fw, relation: abs === dir ? 'this project' : (abs.startsWith(dir) ? 'subfolder' : 'sibling') });
+  if (fw) { backendCandidates.push({ dir: abs, language: 'node', framework: fw, relation }); return; }
+  const other = otherBackend(abs);
+  if (other) backendCandidates.push({ dir: abs, ...other, relation });
 };
 const listDirs = (d) => { try { return readdirSync(d).filter((f) => !f.startsWith('.') && f !== 'node_modules' && statSync(join(d, f)).isDirectory()).map((f) => join(d, f)); } catch { return []; } };
 consider(dir);
 for (const sub of listDirs(dir)) { consider(sub); if (/^(apps|packages|services)$/.test(sub.split('/').pop())) listDirs(sub).forEach(consider); }
 for (const sib of listDirs(resolve(dir, '..'))) consider(sib);
 result.backend = { found: backendCandidates.length > 0, candidates: backendCandidates.slice(0, 10) };
-if (result.backend.found) result.notes.push(`Backend candidates: ${backendCandidates.map((b) => `${b.dir} (${b.framework}, ${b.relation})`).join('; ')}. Confirm with the user that they own it before adding the token route.`);
-else result.notes.push('No Node backend found here or next to this project. Ask the user: backend in another repo / language, owned by another team, or none at all (see SKILL.md §7).');
+if (result.backend.found) result.notes.push(`Backend candidates: ${backendCandidates.map((b) => `${b.dir} (${b.language}: ${b.framework}, ${b.relation})`).join('; ')}. Confirm with the user that they own it before adding the token route (any language works: see SKILL.md §7).`);
+else result.notes.push('No backend found here or next to this project. Ask the user: backend in another repo, owned by another team, or none at all (see SKILL.md §7).');
 
 // existing pages/screens listing (helps the "which page?" question)
 if (result.pagesDir && has(result.pagesDir)) {
@@ -174,6 +198,6 @@ if (JSON_OUT) {
   console.log(`  env:        ${result.envConvention || '-'} → ${result.envFile || '-'}`);
   console.log(`  entries:    ${result.entryCandidates.join(', ') || '-'}`);
   if (result.pagesDir) console.log(`  pages dir:  ${result.pagesDir}${result.existingPages?.length ? ' (' + result.existingPages.length + ' files)' : ''}`);
-  console.log(`  backend:    ${result.backend.found ? result.backend.candidates.map((b) => `${b.dir} (${b.framework}, ${b.relation})`).join('; ') : 'none found'}`);
+  console.log(`  backend:    ${result.backend.found ? result.backend.candidates.map((b) => `${b.dir} (${b.language}: ${b.framework}, ${b.relation})`).join('; ') : 'none found'}`);
   for (const n of result.notes) console.log(`  note: ${n}`);
 }

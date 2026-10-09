@@ -11,7 +11,7 @@ Paths in this file are relative to the skill directory. Scripts are plain Node (
 
 ## 0. Orient
 
-1. Run `node scripts/detect-project.mjs <projectDir> --json`. It tells you platform (web / react-native / none), framework (vite, next, cra, expo, bare-rn), router, package manager, env convention, entry files, existing pages/screens, and `backend`: Node servers found in the project, its subfolders or sibling folders. The backend result feeds §7.
+1. Run `node scripts/detect-project.mjs <projectDir> --json`. It tells you platform (web / react-native / none), framework (vite, next, cra, expo, bare-rn), router, package manager, env convention, entry files, existing pages/screens, and `backend`: servers in any language (Node, Python, PHP, Ruby, Go, Java/Kotlin, .NET) found in the project, its subfolders or sibling folders. The backend result feeds §7.
 2. Decide the track:
    - **Existing app** → continue below.
    - **No project** (`platform: none`) or the user wants a new app → scaffold first, then continue as "existing":
@@ -27,9 +27,11 @@ Keep the user in the loop with short confirmations, but do not stop for things y
 ## 1. Install the SDK
 
 - web: `@ethora/chat-component` (+ import `@ethora/chat-component/dist/main.css` once)
-- RN: follow `references/rn-integration.md` §1 exactly. The order matters: native peers first via `npx expo install …` (including `react-native-worklets` for Reanimated 4 and `expo-asset`), then `npm install @ethora/chat-component-rn --legacy-peer-deps`. A plain `npm install` of the SDK fails with ERESOLVE on fresh Expo apps, or pulls native versions the Expo SDK doesn't support. Finish with `npx expo-doctor`. **Tell the user right away that Expo Go cannot run the chat**: they need a development build (`npx expo run:ios|android`).
+- RN: follow `references/rn-integration.md` §1 exactly. The order matters: native peers first via `npx expo install …` (including `react-native-worklets` for Reanimated 4 and `expo-asset`), then `npm install @ethora/chat-component-rn@latest --legacy-peer-deps`. A plain `npm install` of the SDK fails with ERESOLVE on fresh Expo apps, or pulls native versions the Expo SDK doesn't support. Finish with `npx expo-doctor`. **Tell the user right away that Expo Go cannot run the chat**: they need a development build (`npx expo run:ios|android`).
 
-Use the detected package manager. If the package is already installed, just note the version.
+**Always the current stable release.** Before installing, run `npm view <package> dist-tags --json` and install the `latest` tag explicitly: `<package>@latest` (`npm i` / `yarn add` / `pnpm add` / `bun add`). Never pick a `next`/`beta`/`rc` tag unless the user asks. If the package is already installed, compare the installed version (`npm ls <package>`) with `latest`; if it is older, tell the user both versions and offer the upgrade (don't upgrade silently: it can change behaviour in an existing app). The notes in this skill were verified on 26.9.x; if `latest` is a newer minor/major, skim the package changelog/README on npm for breaking changes before relying on the version-specific workarounds below.
+
+Use the detected package manager.
 
 ## 2. Where does the chat go?
 
@@ -57,6 +59,8 @@ Rules that prevent the classic bugs: one memoized `config` object passed to **bo
 
 Ask: **Ethora Cloud** (default, `https://api.chat.ethora.com`, admin at https://app.chat.ethora.com) or **self-hosted** (customers who run their own Ethora server — same API, their hostnames). For self-hosted read `references/self-hosted.md` and pass `--api <origin>` to the admin script in the next step.
 
+**Say this plainly when the user picks a custom API:** the SDK and the scripts only work against a server that exposes the **Ethora API** (the same `/v1/...` and `/v2/...` endpoints and payloads as `https://api.chat.ethora.com/api-docs/`) plus an Ethora-compatible XMPP server. That is what self-hosted Ethora deployments provide. A different backend (the user's own REST API, Firebase, another chat vendor) will not work, even if it has "similar" endpoints. If the user isn't sure, run `curl -s <api>/v1/apps/get-config?domainName=app` (an Ethora server answers with JSON containing `xmppHost`) before going further.
+
 ## 5. Credentials from the Ethora admin — in the terminal
 
 The admin panel is an API client; `scripts/ethora-admin.mjs` does the same from the terminal (login with MFA support, registration, list/create apps, profile). It needs an interactive terminal for passwords, so **the user runs it**, not you:
@@ -67,7 +71,7 @@ node <skill>/scripts/ethora-admin.mjs setup --api https://api.chat.acme.com   # 
 ```
 It needs a real TTY, so the `!` prefix in Claude Code does not work for it: ask the user to run it in a separate terminal window. The flow asks: account exists? (login / register) → pick an existing app or create one → saves the profile to `~/.ethora/profiles.json` (same format as `npx @ethora/setup`, so either tool works).
 
-Non-interactive alternative, if the user prefers to hand you the values: `ETHORA_PASSWORD=… node scripts/ethora-admin.mjs setup --email <email> --app <appId>` (or `--create-app "<name>"`, `--register --first-name … --last-name …`, `ETHORA_MFA_CODE=…`). Never echo the password back and never write it anywhere.
+The password and MFA code are only accepted at the script's hidden prompt: never ask the user to paste them into the chat, and there is no environment-variable or flag alternative. Non-secret answers can be passed as flags to shorten the flow (`--email <email>`, `--app <appId>` or `--create-app "<name>"`).
 
 **An existing profile is not proof the app still exists.** If `~/.ethora/profiles.json` already has an active profile, run `node scripts/verify-setup.mjs --user-id skill-check-1 --email skill-check-1@example.com` before reusing it. `APP_NOT_FOUND` means the app was deleted: `ethora-admin.mjs apps` shows what is left, then `use <appId>` or `create-app --name "<name>"` (ask the user which). The admin session in `~/.ethora/session.json` often still works, so these commands run without the interactive login.
 
@@ -89,8 +93,8 @@ It merges keys into `.env.local` / `.env` / `src/ethora.config.ts`, adds them to
 
 | Situation | What to do |
 | --- | --- |
-| **A. User owns a backend in this workspace** (detected, and they confirm) | Add the token route: `assets/templates/backend/ethora-token.js` + `express-route.js`, or `next-route.ts` for Next. Put it **behind the app's existing auth middleware** so the token is minted for `req.user`, not a demo user. `write-env.mjs --target backend --dir <backendDir>`; with Docker, pass `backend/.env` via `env_file` and keep it out of the image (`.dockerignore`). Frontend sends the app's session (Bearer/cookie) to the route. |
-| **B. Backend exists but isn't here, is in another language, or belongs to another team** (typical for a frontend dev) | Don't touch it. Write `ETHORA_BACKEND.md` into the frontend repo from `assets/templates/backend/BACKEND_HANDOFF.md`: fill `__APP_ID__`, `__API_URL__`, `__DEV_MODE__`, **never the secret**, and say who to ask for it. Copy `ethora-token.js` next to it as reference code. Meanwhile wire the frontend to the final contract (`GET <api>/api/ethora/token` with the session header) and unblock local work with a **dev token** (`client-jwt.mjs` → `write-env.mjs --dev-jwt`). Make clear that every user is the same chat user and the token expires. |
+| **A. User owns a backend in this workspace** (detected, and they confirm), **in any language** | Add the token route. Node: `assets/templates/backend/ethora-token.js` + `express-route.js`, or `next-route.ts` for Next. **Other languages** (Django/FastAPI/Flask, Laravel/Symfony, Rails, Go, Spring/Ktor, ASP.NET…): write the same route idiomatically in their framework from the contract in `references/auth-modes.md` (HS256 JWT signed with the app secret, `ensureEthoraUser` via `POST /v1/users/batch` with a server JWT in `x-custom-token`), using the JWT library the project already has or the standard one for that stack; port `ethora-token.js` line by line, it is ~70 lines. Env keys are the same (`write-env.mjs --target backend` writes a plain `.env`; wire it the way that project loads config). Put it **behind the app's existing auth middleware** so the token is minted for `req.user`, not a demo user. `write-env.mjs --target backend --dir <backendDir>`; with Docker, pass `backend/.env` via `env_file` and keep it out of the image (`.dockerignore`). Frontend sends the app's session (Bearer/cookie) to the route. |
+| **B. Backend exists but isn't here, or belongs to another team** (typical for a frontend dev) | Don't touch it. Write `ETHORA_BACKEND.md` into the frontend repo from `assets/templates/backend/BACKEND_HANDOFF.md`: fill `__APP_ID__`, `__API_URL__`, `__DEV_MODE__`, **never the secret**, and say who to ask for it. Copy `ethora-token.js` next to it as reference code. Meanwhile wire the frontend to the final contract (`GET <api>/api/ethora/token` with the session header) and unblock local work with a **dev token** (`client-jwt.mjs` → `write-env.mjs --dev-jwt`). Make clear that every user is the same chat user and the token expires. |
 | **C. No backend at all, and the user is fine with a separate chat login** | Zero-backend modes: the chat's built-in Ethora login/registration (no `jwtLogin`; `appId` + `customAppToken`), or `customLogin` with a test account (dev only). Chat accounts are separate from the app's accounts. Web caveat: web-integration.md §7. |
 | **D. No backend, but they want auto sign-in anyway** | Explain it isn't possible safely without a server. Offer: the Vite dev plugin (web, dev only), a dev token (dev only), or a minimal token service (the Express template is self-contained: one file plus a route, deployable as a serverless function). Do **not** sign tokens in the client with the secret. |
 
@@ -125,4 +129,4 @@ Tell the user, briefly: what was installed, which files were created/changed **(
 | Endpoints behind the admin panel, profile file format | `references/admin-api.md` |
 | Self-hosted servers | `references/self-hosted.md` |
 | Errors → fixes | `references/troubleshooting.md` |
-| Official docs | https://docs.ethora.com · https://api.chat.ethora.com/api-docs/ · package READMEs on npm |
+| Official docs | https://ethora.com · admin https://app.chat.ethora.com · https://api.chat.ethora.com/api-docs/ · package READMEs on npm |

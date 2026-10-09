@@ -42,7 +42,7 @@ Do this when the user is created in your system or lazily before minting their f
 
 - Node/Express: `assets/templates/backend/ethora-token.js` + `express-route.js`
 - Next.js App Router: `assets/templates/backend/next-route.ts` (`app/api/ethora/token/route.ts`)
-- Any other language: HS256 JWT with the payload above; the header for server-to-server calls is `x-custom-token`.
+- Any other language (Python, PHP, Ruby, Go, Java/Kotlin, C#…): the route is the same everywhere. Sign an HS256 JWT with the payload above (any standard JWT library), sync the user with `POST /v1/users/batch` using a server JWT (`data.type: 'server'`) in the `x-custom-token` header, return `{ token }`. Port `ethora-token.js`; nothing in it is Node-specific.
 
 Frontend contract used by the templates: `GET /api/ethora/token` (with the app's own session cookie/bearer) → `200 { "token": "<jwt>" }`.
 

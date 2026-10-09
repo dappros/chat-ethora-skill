@@ -16,12 +16,13 @@
  *   set-secret <secret>         store the app secret manually (copied from the admin panel)
  *   logout                      forget the admin session
  *
- * Non-interactive use (CI, or when Claude runs it for you): pass everything as flags/env and no prompt is shown:
- *   ETHORA_PASSWORD=… node ethora-admin.mjs login --email you@x.com
- *   ETHORA_PASSWORD=… node ethora-admin.mjs setup --email you@x.com --app <appId>          (existing app)
- *   ETHORA_PASSWORD=… node ethora-admin.mjs setup --email you@x.com --create-app "My App"  (new app)
- *   ETHORA_PASSWORD=… ETHORA_MFA_CODE=123456 … (accounts with MFA)
- *   Without a TTY the script refuses to prompt and tells you which flag is missing.
+ * Passwords and MFA codes are only ever typed by the user at a hidden prompt in a real terminal.
+ * They are never read from environment variables, flags or files, and never stored.
+ * Non-secret choices can be passed as flags to skip their prompts:
+ *   node ethora-admin.mjs setup --email you@x.com --app <appId>          (existing app)
+ *   node ethora-admin.mjs setup --email you@x.com --create-app "My App"  (new app)
+ *
+ * Network: talks only to the Ethora API origin (default https://api.chat.ethora.com, or --api <url>).
  *
  * Global flags
  *   --api <url>          API origin, default https://api.chat.ethora.com (self-hosted: your API)
@@ -105,7 +106,7 @@ function die(msg, code = 1) {
 // ---------------------------------------------------------------- prompts
 const INTERACTIVE = process.stdin.isTTY && process.stdout.isTTY;
 function needTty(what) {
-  die(`No interactive terminal available to ask for "${what}". Run this command in a real terminal, or pass it non-interactively (see --help: --email, ETHORA_PASSWORD, --app / --create-app, ETHORA_MFA_CODE).`);
+  die(`No interactive terminal available to ask for "${what}". Run this command yourself in a real terminal window (passwords and MFA codes are only accepted at a hidden prompt).`);
 }
 function createRl() {
   return readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
@@ -286,7 +287,7 @@ async function finishLogin(data, email) {
 async function doLogin({ email, password } = {}) {
   const baseApp = await getBaseApp();
   email = email || flags.email || (await askRequired('Email'));
-  password = password || process.env.ETHORA_PASSWORD || (await askHidden('Password'));
+  password = password || (await askHidden('Password'));
   let data;
   try {
     data = await api('/v2/users/login-with-email', {
@@ -302,7 +303,7 @@ async function doLogin({ email, password } = {}) {
   }
   if (data.mfaRequired) {
     log('This account has multi-factor authentication enabled.');
-    const code = process.env.ETHORA_MFA_CODE || (await askRequired('Enter the 6-digit code from your authenticator app (or a backup code)'));
+    const code = (await askRequired('Enter the 6-digit code from your authenticator app (or a backup code)'));
     data = await api('/v2/users/login/mfa', {
       method: 'POST',
       body: { mfaToken: data.mfaToken, code, appId: baseApp._id },
@@ -321,7 +322,7 @@ async function doRegister() {
   const email = flags.email || (await askRequired('Email'));
   const firstName = flags['first-name'] || (await askRequired('First name'));
   const lastName = flags['last-name'] || (await askRequired('Last name'));
-  let password = process.env.ETHORA_PASSWORD || '';
+  let password = '';
   while (!password) {
     password = await askHidden('Password (8+ characters)');
     if (password.length < 8) { log('  Password must be at least 8 characters.'); continue; }

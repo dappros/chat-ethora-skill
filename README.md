@@ -26,9 +26,19 @@ Then just ask Claude Code: *"add Ethora chat to this app"* — or invoke `/ethor
 
 Only if you agree. "Users land in the chat already signed in" needs one server route (`GET /api/ethora/token`) that signs a short-lived token with the Ethora app secret, and that secret can never live in a browser or mobile app. The skill asks first, then:
 
-- **you own the backend** → it adds the route behind your existing auth (Express / Next templates);
+- **you own the backend** → it adds the route behind your existing auth, in your backend's language (Node templates included; Python, PHP, Ruby, Go, Java/Kotlin, .NET written from the same contract);
 - **the backend is someone else's** → it leaves it alone, writes `ETHORA_BACKEND.md` (the contract + reference code) for the backend team, and uses a temporary dev token so you can work now;
 - **there is no backend** → it uses Ethora's own login inside the chat (separate chat accounts) or a dev-only token.
+
+## Which server can I use?
+
+Ethora Cloud (default) or your own **self-hosted Ethora** server. A custom API only works if it is an Ethora deployment, i.e. exposes the same endpoints as `https://api.chat.ethora.com/api-docs/` and an Ethora-compatible XMPP server. Your own unrelated backend or another chat vendor will not work as the chat server.
+
+## Privacy, credentials and network
+
+- **Your Ethora password and MFA code** are typed only by you, at a hidden prompt of `scripts/ethora-admin.mjs` in your own terminal. They are never read from environment variables or files, never stored, and never pass through Claude.
+- **What is stored locally:** `~/.ethora/session.json` (your Ethora admin session for the terminal tools; `node scripts/ethora-admin.mjs logout` deletes it) and `~/.ethora/profiles.json` (the selected app: id, app token, app secret, endpoints; same file as `npx @ethora/setup`). Both are on your machine only. `write-env.mjs` copies public values into your project's env files and the app secret only into server-side env files, and adds them to `.gitignore`.
+- **Network:** the scripts talk only to the Ethora API you chose (default `https://api.chat.ethora.com`, or your self-hosted origin) and, in `verify-setup.mjs`, check that its XMPP host answers. No telemetry, nothing else is contacted.
 
 ## React Native notes
 

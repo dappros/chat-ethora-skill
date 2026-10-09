@@ -5,7 +5,8 @@ Package: https://www.npmjs.com/package/@ethora/chat-component · repo: https://g
 ## 1. Install
 
 ```bash
-npm i @ethora/chat-component        # yarn add / pnpm add / bun add
+npm view @ethora/chat-component dist-tags --json   # check the current stable (`latest`)
+npm i @ethora/chat-component@latest                # yarn add / pnpm add / bun add
 ```
 
 Peer deps: `react` and `react-dom` ^18.3 or ^19. Everything else (xmpp client, redux, styled-components) is bundled.

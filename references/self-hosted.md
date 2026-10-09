@@ -2,6 +2,8 @@
 
 Customers with a self-hosted deployment run the **same API and XMPP stack** under their own hostnames (e.g. `api.chat.acme.com`, `xmpp.chat.acme.com`, admin at `app.chat.acme.com`). Nothing changes in the SDK contract — only the endpoints.
 
+> **Only Ethora-compatible servers work.** "Self-hosted" means an Ethora server deployment (the same API as `https://api.chat.ethora.com/api-docs/` and the same XMPP stack), not "any API". A backend that doesn't implement these exact endpoints and payloads — the user's own REST API, Firebase, another chat product — will not work with the SDK or with these scripts. Tell the user this before collecting endpoints. Quick check: `GET <api>/v1/apps/get-config?domainName=app` must return JSON with `xmppHost`.
+
 ## Ask the user for
 
 1. API origin — e.g. `https://api.chat.acme.com` (with or without `/v1`).
